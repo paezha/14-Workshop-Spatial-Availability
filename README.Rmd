@@ -16,8 +16,9 @@ knitr::opts_chunk$set(
 ```
 
 ```{r preliminary-load-packages, include=FALSE}
-library(dplyr)
-library(ggplot2)
+library(dplyr) # A Grammar of Data Manipulation
+library(ggplot2) # Create Elegant Data Visualisations Using the Grammar of Graphics
+library(patchwork) # The Composer of Plots
 ```
 
 # Workshop
@@ -118,19 +119,28 @@ toy_df <- data.frame(uid = c("P1", "O1"),
                      opportunities = c(0, 200),
                      x = c(0, 35),
                      y = c(0, 0),
-                     label = c("P = 100", "O = 200"))
+                     label = c("P1 = 100", "O1 = 200"))
 
-ggplot(data = toy_df,
-       aes(x = x,
-           y = y,
-           shape = type)) +
-  geom_point(size = 10) +
-  geom_text(aes(x = x,
-                y = y - 0.1, 
-                label = label)) +
-  ylim(c(-0.15, 0.15)) +
+lu <- ggplot() +
+  # Plot origin(s) and destination(s)
+  geom_point(data = toy_df,
+             aes(x = x,
+                 y = y,
+                 shape = type),
+             size = 10) +
+  # Label the origin(s) and destination(s)
+  geom_text(data = toy_df,
+            aes(x = x,
+                y = y - 0.1,
+                label = label),
+            size = 3) +
+  # Theme
+  ylim(c(-0.15, 0.5)) +
+  xlab("time (min)") +
   theme_void() +
   theme(legend.position = "none")
+
+lu
 ```
 
 How accessible are the opportunities? It depends on the travel behavior under a given transportation system.
@@ -140,8 +150,8 @@ People may be unwilling to travel too far for some opportunities, even if those 
 The travel behavior of a population is modelled using an _impedance function_ (also sometimes called a _distance-decay function_, or a _deterrence function_.)
 
 ```{r fig-basic-system-w-impedance, echo=FALSE}
-imp_df <- data.frame(time = seq(from = -50,
-                                to = 50, 
+imp_df <- data.frame(time = seq(from = -80,
+                                to = 60, 
                                 by = 1)) |>
   mutate(f = exp(-0.1 * abs(time)))
 
@@ -156,7 +166,8 @@ ggplot() +
   geom_text(data = toy_df,
             aes(x = x,
                 y = y - 0.1,
-                label = label)) +
+                label = label),
+            size = 3) +
   # Plot the impedance function
   geom_line(data = imp_df |>
               filter(time >= 1),
@@ -165,17 +176,17 @@ ggplot() +
             color = "red") +
   # Label the impedance function
   geom_text(aes(x = 20, 
-            y = 0.5,
-            label = "impedance function"),
+                y = 0.5,
+                label = "impedance function"),
             color = "red",
-            size = 5) +
+            size = 3) +
   annotate("segment",
            x = 19,
            xend = 15,
            y = 0.45,
            yend = 0.25,
            color = "red",
-           arrow = arrow()) +
+           arrow = arrow(length = unit(0.1, "inches"))) +
   ylim(c(-0.15, 1)) +
   xlab("time (min)") +
   theme_minimal() +
@@ -197,8 +208,8 @@ $$
 In the above, $c_ij$ is the cost of reaching destination $j$ from origin $i$, and $\delta$ is a _threshold_, that is, the tolerance for long trips. What kind of behavior does this function represent?  
 
 ```{r fig-binary-impedance, echo=FALSE}
-imp_df <- data.frame(time = seq(from = -50,
-                                to = 50, 
+imp_df <- data.frame(time = seq(from = -80,
+                                to = 60, 
                                 by = 0.1)) |>
   mutate(f = ifelse(time <= 20, 1, 0))
 
@@ -211,26 +222,26 @@ ggplot() +
             color = "red") +
   # Label the impedance function
   geom_text(aes(x = 35, 
-            y = 0.5,
-            label = "binary impedance function"),
+                y = 0.5,
+                label = "binary impedance function"),
             color = "red",
-            size = 5) +
+            size = 3) +
   annotate("segment",
            x = 34,
            xend = 21,
            y = 0.45,
            yend = 0.25,
            color = "red",
-           arrow = arrow()) +
+           arrow = arrow(length = unit(0.1, "inches"))) +
   ylim(c(-0.15, 1)) +
-    xlab("time (min)") +
+  xlab("time (min)") +
   theme_minimal() +
   theme(legend.position = "none")
 ```
 
 This function has been used in numerous studies, including:
 
-- @kawabata2006Accessibility
+- @kawabata2006Accessibility chose these values because they approximate the mean travel time in the region.
   - $\delta = 30$ min (Boston and LA)
   - $\delta = 45$ min (Tokyo)
 - @korsu2010Accessibility
@@ -239,7 +250,7 @@ This function has been used in numerous studies, including:
   - $\delta = 30$ min (Taipei)
 - @boisjoly2017Accessibility
   - $\delta = 60$ min (Sao Paulo)
-  
+
 An alternative is the inverse power function:
 $$
 f(c_{ij}) = c_{ij}^{-\beta}
@@ -250,8 +261,8 @@ f(c_{ij}) = \frac{1}{c_{ij}}
 $$
 
 ```{r fig-inverse-power-impedance, echo=FALSE}
-imp_df <- data.frame(time = seq(from = -50,
-                                to = 50, 
+imp_df <- data.frame(time = seq(from = -80,
+                                to = 60, 
                                 by = 0.1)) |>
   filter(abs(time) >= 1) |>
   mutate(f = 1/time)
@@ -265,19 +276,20 @@ ggplot() +
             color = "red") +
   # Label the impedance function
   geom_text(aes(x = 35, 
-            y = 0.5,
-            label = "inverse power impedance function"),
+                y = 0.5,
+                label = "inverse power impedance function"),
             color = "red",
-            size = 5) +
+            size = 3) +
   annotate("segment",
            x = 34,
            xend = 21,
            y = 0.45,
            yend = 0.25,
            color = "red",
-           arrow = arrow()) +
+           arrow = arrow(length = unit(0.1, "inches"))) +
+  # Theme
   ylim(c(-0.15, 1)) +
-    xlab("time (min)") +
+  xlab("time (min)") +
   theme_minimal() +
   theme(legend.position = "none")
 ```
@@ -289,8 +301,8 @@ $$
 
 @cheng2013Accessibility used this measure for the case of Amsterdam, with $\beta = 0.15$ and $\gamma = 1$:
 ```{r fig-negative-exponential-impedance, echo=FALSE}
-imp_df <- data.frame(time = seq(from = -50,
-                                to = 50, 
+imp_df <- data.frame(time = seq(from = -80,
+                                to = 60, 
                                 by = 0.1)) |>
   mutate(f = exp(-0.15 * time))
 
@@ -303,64 +315,523 @@ ggplot() +
             color = "red") +
   # Label the impedance function
   geom_text(aes(x = 35, 
-            y = 0.5,
-            label = "negative exponential impedance function"),
+                y = 0.5,
+                label = "negative exponential impedance function"),
             color = "red",
-            size = 5) +
+            size = 3) +
   annotate("segment",
            x = 34,
            xend = 21,
            y = 0.45,
            yend = 0.25,
            color = "red",
-           arrow = arrow()) +
+           arrow = arrow(length = unit(0.1, "inches"))) +
+  # Theme
   ylim(c(-0.15, 1)) +
-    xlab("time (min)") +
+  xlab("time (min)") +
   theme_minimal() +
   theme(legend.position = "none")
 ```
-### What is accessibility?
+
+### What is accessibility?  
 
 Accessibility is defined as a weighted sum of opportunities:
 $$
 S_i =\sum_j \underbrace{O_j}_{\text{Opportunities }} \underbrace{f(c_{ij})}_{\text{ Weights (impedance)}}
 $$
 
-![](images/Image-05.png)
+Given the spatial distribution of opportunities $O_{j}$, the propensity to travel $f(\cdot)$, and the cost of travel in a given transportation system $c_{ij}$, accessibility summarizes the opportunity landscape.
 
-![](images/Image-06.png)
+Back to our toy system:
 
-![](images/Image-07.png)
+```{r fig-basic-system-revisited, echo=FALSE}
+lu +
+  # Annotate the time
+  geom_text(aes(x = 17.5, 
+                y = 0.3,
+                label = "35 min"),
+            color = "black",
+            size = 3) +
+  annotate("segment",
+           x = 0,
+           xend = 35,
+           y = 0.25,
+           yend = 0.25,
+           color = "black",
+           arrow = arrow(length = unit(0.1, "inches"),
+                         ends = "both"))
+```
 
-![](images/Image-08.png)
+What is the accessibility in these cases?
 
-![](images/Image-09.png)
+```{r fig-accessibility-boston-LA-kawabata, echo=FALSE}
+boston_imp_df <- data.frame(time = seq(from = -80,
+                                to = 60, 
+                                by = 0.1)) |>
+  mutate(f = ifelse(time <= 30, 1, 0))
 
-![](images/Image-10.png)
+boston <- ggplot() +
+  # Plot origin(s) and destination(s)
+  geom_point(data = toy_df,
+             aes(x = x,
+                 y = y,
+                 shape = type),
+             size = 10) +
+  # Label the origin(s) and destination(s)
+  geom_text(data = toy_df,
+            aes(x = x,
+                y = y - 0.1,
+                label = label),
+            size = 3) +
+  # Plot the impedance function
+  geom_line(data = boston_imp_df |>
+              filter(time >= 1),
+            aes(x = time,
+                y = f),
+            color = "red") +
+  ggtitle("Kawabata and Shen, Boston/LA (30 min)") +
+  ylim(c(-0.15, 1)) +
+  xlab("time (min)") +
+  theme_minimal() +
+  theme(legend.position = "none")
 
-![](images/Image-11.png)
+boston
+```
 
-![](images/Image-12.png)
+```{r fig-accessibility-tokyo-kawabata, echo=FALSE}
+tokyo_imp_df <- data.frame(time = seq(from = -80,
+                                to = 60, 
+                                by = 0.1)) |>
+  mutate(f = ifelse(time <= 45, 1, 0))
 
-![](images/Image-13.png)
+tokyo <- ggplot() +
+  # Plot origin(s) and destination(s)
+  geom_point(data = toy_df,
+             aes(x = x,
+                 y = y,
+                 shape = type),
+             size = 10) +
+  # Label the origin(s) and destination(s)
+  geom_text(data = toy_df,
+            aes(x = x,
+                y = y - 0.1,
+                label = label),
+            size = 3) +
+  # Plot the impedance function
+  geom_line(data = tokyo_imp_df |>
+              filter(time >= 1),
+            aes(x = time,
+                y = f),
+            color = "red") +
+  ggtitle("Kawabata and Shen, Tokyo (45 min)") +
+  ylim(c(-0.15, 1)) +
+  xlab("time (min)") +
+  theme_minimal() +
+  theme(legend.position = "none")
 
-![](images/Image-14.png)
+tokyo
+```
 
-![](images/Image-15.png)
+```{r fig-accessibility-barcelona-matas, echo=FALSE}
+barcelona_imp_df <- data.frame(time = seq(from = -80,
+                                to = 60, 
+                                by = 0.1)) |>
+  filter(abs(time) >= 1) |>
+  mutate(f = 1/abs(time))
 
-![](images/Image-16.png)
+barcelona <- ggplot() +
+  # Plot origin(s) and destination(s)
+  geom_point(data = toy_df,
+             aes(x = x,
+                 y = y,
+                 shape = type),
+             size = 10) +
+  # Label the origin(s) and destination(s)
+  geom_text(data = toy_df,
+            aes(x = x,
+                y = y - 0.1,
+                label = label),
+            size = 3) +
+  # Plot the impedance function
+  geom_line(data = barcelona_imp_df |>
+              filter(time >= 1),
+            aes(x = time,
+                y = f),
+            color = "red") +
+  # Annotate impedance @ 1
+  geom_text(aes(x = 10, 
+                y = 1,
+                label = "f(1) = 1"),
+            color = "red",
+            size = 3) +
+  annotate("segment",
+           x = 5,
+           xend = 1,
+           y = 1,
+           yend = 1,
+           color = "red",
+           arrow = arrow(length = unit(0.1, "inches"))) +
+  # Annotate impedance @ 35
+  geom_text(aes(x = 35, 
+                y = 0.25,
+                label = "f(35) = 0.028"),
+            color = "red",
+            size = 3) +
+  annotate("segment",
+           x = 35,
+           xend = 35,
+           y = 0.19,
+           yend = 0.03,
+           color = "red",
+           arrow = arrow(length = unit(0.1, "inches"))) +
+  ggtitle("Matas et al., Barcelona") +
+  ylim(c(-0.15, 1)) +
+  xlab("time (min)") +
+  theme_minimal() +
+  theme(legend.position = "none")
 
-![](images/Image-17.png)
+barcelona
+```
 
-Formalizing this, we see that spatial availability $V_i$ is the weighted and _constrained_ sum of opportunities:
+Modify the set up as follows. How does accessibility change?
+
+```{r fig-basic-system-2, echo=FALSE, warning=FALSE}
+toy_df_2 <- data.frame(uid = c("P1", "O1", "O2", "P2"),
+                     type = c("P", "O", "O", "P"),
+                     population = c(100, 0, 0, 190),
+                     opportunities = c(0, 200, 80, 0),
+                     x = c(0, 35, -10, 45),
+                     y = c(0, 0, 0, 0),
+                     label = c("P1 = 100", "O1 = 200", "O2 = 80", "P2 = 190"))
+
+lu_2 <- ggplot() +
+  # Plot origin(s) and destination(s)
+  geom_point(data = toy_df_2 |> slice(1:3),
+             aes(x = x,
+                 y = y,
+                 shape = type),
+             size = 10) +
+  # Label the origin(s) and destination(s)
+  geom_text(data = toy_df_2 |> slice(1:3),
+            aes(x = x,
+                y = y - 0.1,
+                label = label),
+            size = 3) +
+  # Plot the impedance function
+  geom_line(data = barcelona_imp_df,
+            aes(x = time,
+                y = f),
+            color = "black") +
+  # Annotate impedance @ -10
+  geom_text(aes(x = -15, 
+                y = 0.25,
+                label = "f(10) = 0.1"),
+            color = "black",
+            size = 3) +
+  annotate("segment",
+           x = -15,
+           xend = -10,
+           y = 0.19,
+           yend = 0.11,
+           color = "black",
+           arrow = arrow(length = unit(0.1, "inches"))) +
+  # Annotate impedance @ 35
+  geom_text(aes(x = 30, 
+                y = 0.25,
+                label = "f(35) = 0.028"),
+            color = "black",
+            size = 3) +
+  annotate("segment",
+           x = 30,
+           xend = 35,
+           y = 0.19,
+           yend = 0.03,
+           color = "black",
+           arrow = arrow(length = unit(0.1, "inches"))) +
+  # Theme
+  ylim(c(-0.15, 0.5)) +
+  xlim(c(-30, 60)) +
+  xlab("time (min)") +
+  theme_minimal() +
+  theme(legend.position = "none")
+
+lu_2
+```
+
+What happens if we add a population center? How does accessibility change?
+
+```{r fig-basic-system-3, echo=FALSE, warning=FALSE}
+lu_3 <- ggplot() +
+  # Plot origin(s) and destination(s)
+  geom_point(data = toy_df_2 |> slice(1:3),
+             aes(x = x,
+                 y = y,
+                 shape = type),
+             size = 10) +
+  # Label the origin(s) and destination(s)
+  geom_text(data = toy_df_2 |> slice(1:3),
+            aes(x = x,
+                y = y - 0.1,
+                label = label),
+            size = 3) +
+  # Plot origin(s) and destination(s)
+  geom_point(data = toy_df_2 |> slice(4),
+             aes(x = x,
+                 y = y,
+                 shape = type),
+             size = 10,
+            color = "orange") +
+  # Label the origin(s) and destination(s)
+  geom_text(data = toy_df_2 |> slice(4),
+            aes(x = x,
+                y = y - 0.1,
+                label = label),
+            size = 3,
+            color = "orange") +
+  # Plot the impedance function
+  geom_line(data = barcelona_imp_df,
+            aes(x = time,
+                y = f),
+            color = "black") +
+  # Annotate impedance @ -10
+  geom_text(aes(x = -15, 
+                y = 0.25,
+                label = "f(10) = 0.1"),
+            color = "black",
+            size = 3) +
+  annotate("segment",
+           x = -15,
+           xend = -10,
+           y = 0.19,
+           yend = 0.11,
+           color = "black",
+           arrow = arrow(length = unit(0.1, "inches"))) +
+  # Annotate impedance @ 35
+  geom_text(aes(x = 30, 
+                y = 0.25,
+                label = "f(35) = 0.028"),
+            color = "black",
+            size = 3) +
+  annotate("segment",
+           x = 30,
+           xend = 35,
+           y = 0.19,
+           yend = 0.03,
+           color = "black",
+           arrow = arrow(length = unit(0.1, "inches"))) +
+  # Plot the impedance function
+  geom_line(data = barcelona_imp_df |>
+              filter(time <= -1) |>
+              mutate(time = time + 45),
+            aes(x = time,
+                y = f),
+            color = "orange") +
+  # Annotate impedance @ -10 from P2
+  geom_text(aes(x = -25, 
+                y = 0.13,
+                label = "f(55) = 0.018"),
+            color = "orange",
+            size = 3) +
+  annotate("segment",
+           x = -25,
+           xend = -10,
+           y = 0.10,
+           yend = 0.02,
+           color = "orange",
+           arrow = arrow(length = unit(0.1, "inches"))) +
+  # Annotate impedance @ 35
+  geom_text(aes(x = 50, 
+                y = 0.25,
+                label = "f(10) = 0.1"),
+            color = "orange",
+            size = 3) +
+  annotate("segment",
+           x = 50,
+           xend = 35,
+           y = 0.19,
+           yend = 0.1,
+           color = "orange",
+           arrow = arrow(length = unit(0.1, "inches"))) +
+  # Theme
+  ylim(c(-0.15, 0.5)) +
+  xlim(c(-30, 60)) +
+  xlab("time (min)") +
+  theme_minimal() +
+  theme(legend.position = "none")
+
+lu_3
+```
+
+Back to our initial system. Let us ask a slightly different question. How many jobs are taken?
+
+```{r fig-basic-system-revisited-2, echo=FALSE}
+lu +
+  # Annotate the time
+  geom_text(aes(x = 17.5, 
+                y = 0.3,
+                label = "35 min"),
+            color = "black",
+            size = 3) +
+  annotate("segment",
+           x = 0,
+           xend = 35,
+           y = 0.25,
+           yend = 0.25,
+           color = "black",
+           arrow = arrow(length = unit(0.1, "inches"),
+                         ends = "both"))
+```
+
+The impedance function models the propensity to travel, and at some point it drops to zero. But that is a summary for the population, and depends on what opportunities are available.
+
+```{r fig-basic-system-w-impedance-revisited, echo=FALSE}
+imp_df <- data.frame(time = seq(from = -80,
+                                to = 60, 
+                                by = 1)) |>
+  mutate(f = exp(-0.1 * abs(time)))
+
+ggplot() +
+  # Plot origin(s) and destination(s)
+  geom_point(data = toy_df,
+             aes(x = x,
+                 y = y,
+                 shape = type),
+             size = 10) +
+  # Label the origin(s) and destination(s)
+  geom_text(data = toy_df,
+            aes(x = x,
+                y = y - 0.1,
+                label = label),
+            size = 3) +
+  # Plot the impedance function
+  geom_line(data = imp_df |>
+              filter(time >= 1),
+            aes(x = time,
+                y = f),
+            color = "red") +
+  # Label the impedance function
+  geom_text(aes(x = 20, 
+                y = 0.5,
+                label = "impedance function"),
+            color = "red",
+            size = 3) +
+  annotate("segment",
+           x = 19,
+           xend = 15,
+           y = 0.45,
+           yend = 0.25,
+           color = "red",
+           arrow = arrow(length = unit(0.1, "inches"))) +
+  ylim(c(-0.15, 1)) +
+  xlab("time (min)") +
+  theme_minimal() +
+  theme(legend.position = "none")
+```
+
+How many jobs are taken in each of these cases?
+
+```{r jobs-taken, echo=FALSE, out.height=15}
+(tokyo / boston) / barcelona
+```
+
+Could it be that all those jobs remain vacant? What if instead those __available__ jobs were allocated to people who are willing to reach them?
+```{r jobs-taken-matas, echo=FALSE}
+barcelona
+```
+
+Accessibility is low because it is expensive to reach the opportunities. But, the jobs are there and people are willing to reach them.
+
+```{r spatially-available-jobs-lu2, echo=FALSE, warning=FALSE}
+lu_2
+```
+
+The number of jobs available equals the total number of jobs in the region. That is because jobs are allocated __proportionally__.
+
+Proportional allocationo of opportunities means that, unlike accessibility, the number of opportunities available can change when there are new population centers.
+
+```{r spatially-available-jobs-lu3, echo=FALSE, warning=FALSE}
+lu_3
+```
+
+Let us see how this works.
+
+- **O2** has opportunities that are available to both **P1** and **P2**. But **P1** can reach those opportunities with less "friction" (it is closer).
+
+The total "friction" (impedance) of reaching **O2** is:
+$$
+\underbrace{0.1}_{\text{from P1}} + \overbrace{0.018}^ {\text{from P2}}
+$$
+
+Jobs are allocated preferentially to those who can reach them with lower friction. Then the jobs available to **P1** from **O2** are:
+$$
+80\cdot\frac{0.1}{0.118} = 80(0.847) = 67.8
+$$
+
+And, the jobs available to **P2** from **O2** are:
+$$
+80\cdot\frac{0.018}{0.118} = 80(0.153) = 12.2
+$$
+
+The total "friction" (impedance) of reaching **O1** is:
+$$
+\underbrace{0.028}_{\text{from P1}} + \overbrace{0.1}^ {\text{from P2}}
+$$
+
+Again, opportunities are allocated preferentially to those who can reach them with lower friction. Then the jobs available to **P1** from **O1** are:
+$$
+200\cdot\frac{0.028}{0.128} = 200(0.219) = 43.8
+$$
+
+And, the jobs available to **P2** from **O1** are:
+$$
+200\cdot\frac{0.1}{0.128} = 200(0.781) = 156.2
+$$
+
+The opportunities available to **P1** are as follows:
+$$
+\underbrace{200\cdot\frac{0.028}{0.128} = 200(0.219) = 43.8}_{\text{opportunities available from O1}}
+$$
+
+$$
+\underbrace{80\cdot\frac{0.1}{0.118} = 80(0.847) = 67.8}_{\text{opportunities available from O2}}
+$$
+
+$$
+43.8 + 67.8 = 111.6
+$$
+
+The opportunities available to **P2** are as follows:
+$$
+\underbrace{200\cdot\frac{0.1}{0.128} = 200(0.781) = 156.2}_{\text{opportunities available from O1}}
+$$
+
+$$
+\underbrace{80\cdot\frac{0.018}{0.118} = 80(0.153) = 12.2}_{\text{opportunities available from O2}}
+$$
+
+$$
+156.2 + 12.2 = 168.4
+$$
+
+And so, the total jobs available are:
+$$
+\underbrace{111.6}_{\text{to P1}} + \overbrace{168.4}^{\text{to P2}} = 280
+$$
+
+The proportional allocation mechanism _constrains_ the available opportunities to match the total number of opportunities in the system. Compare to the accessibility:
+$$
+\underbrace{13.6}_{\text{to P1}} + \overbrace{21.44}^{\text{to P2}} = 35.04
+$$
+
+Formalizing this, we see that spatial availability, call it $V_i$, is the weighted and _constrained_ sum of opportunities:
 $$
 V_i = \sum_j^J O_j\frac{f(c_{ij})}{\sum_n^N f(c_{nj})}
 $$
 
 \noindent where:
 
-- $N$ is the number of locations where population is
-- $J$ is the number of locations where opportunities are
+- $N$ is the number of locations with population
+- $J$ is the number of locations with opportunities
 
 Compare to accessibility:
 
@@ -370,15 +841,110 @@ $$
 
 Let us change the set up to illustrate a different point.
 
-![](images/Image-18.png)
+```{r fig-basic-system-4, echo=FALSE}
+toy_df_3 <- data.frame(uid = c("P1", "P2", "O1"),
+                     type = c("P", "P", "O"),
+                     population = c(80, 190, 0),
+                     opportunities = c(0, 0, 200),
+                     x = c(-10, 10, 0),
+                     y = c(0, 0, 0),
+                     label = c("P1 = 80", "P2 = 190", "O1 = 200"))
 
-![](images/Image-19.png)
+lu_4 <- ggplot() +
+  # Plot origin(s) and destination(s)
+  geom_point(data = toy_df_3,
+             aes(x = x,
+                 y = y,
+                 shape = type),
+             size = 10) +
+  # Label the origin(s) and destination(s)
+  geom_text(data = toy_df_3,
+            aes(x = x,
+                y = y - 0.1,
+                label = label),
+            size = 3) +
+  # Label times
+  geom_text(aes(x = -5, 
+                y = 0.18,
+                label = "10 min"),
+            color = "red",
+            size = 3) +
+  annotate("segment",
+           x = -10,
+           xend = 0,
+           y = 0.15,
+           yend = 0.15,
+           color = "red",
+           arrow = arrow(length = unit(0.1, "inches"),
+                         ends = "both")) +
+  geom_text(aes(x = 5, 
+                y = 0.18,
+                label = "10 min"),
+            color = "red",
+            size = 3) +
+  annotate("segment",
+           x = 0,
+           xend = 10,
+           y = 0.15,
+           yend = 0.15,
+           color = "red",
+           arrow = arrow(length = unit(0.1, "inches"),
+                         ends = "both")) +
+  # Theme
+  ylim(c(-0.15, 0.5)) +
+  xlab("time (min)") +
+  theme_void() +
+  theme(legend.position = "none")
+
+lu_4
+```
+
+Since the impedance is the same, the previous proportional allocation mechanism would have us give 100 opportunities to **P1** and 100 opportunities to **P2**, which seems a bit unfair, not to mention wasteful.
+
+To improve on this situation, opportunities will be allocated proportionally based on _demand_.
+
+The proportion of the total population at **P1** is:
+$$
+\frac{80}{270} = 0.296
+$$
+
+The proportion of the total population at **P2** is:
+$$
+\frac{190}{270} = 0.704
+$$
+
+In this way, the jobs _available_ to **P1** from **O1** is:
+$$
+200\cdot \frac{80}{270} = 200(0.296) = 59.26
+$$
+
+And the jobs _available_ to **P2** from **O1** is:
+$$
+200\cdot \frac{190}{270} = 200(0.704) = 140.74
+$$
+
+This mechanism for allocating opportunities is impartial with respect to the population: the ratio of opportunities to population is identical, as expected:
+$$
+\frac{59.26}{80} = \frac{140.74}{190} = 0.741
+$$
+
+It also satisfies the following:
+$$
+\sum_i V_i = \sum_j O_j
+$$
+
+As we can verify, the sum of available opportunities is preserved:
+$$
+59.26 + 140.74 = 200
+$$
 
 When we formalize this we see again that _spatial availability_ is a weighted sum of the opportunities, constrained to match the total:
 
 $$
 V_i = \sum_j O_j\frac{P_i}{\sum_n^N P_n}
 $$
+
+## Spatial availability
 
 We have described two proportional allocation mechanisms:
 
@@ -422,7 +988,7 @@ $$
 S_i = \sum_j^JO_jf(c_{ij})
 $$
 
-Spatial availability is a measure of the number of opportunities that are available from a location. It is singly constrained measure of accessibility.
+Spatial availability is a measure of the number of opportunities that are available to a location from all reachable destinations. It is a singly constrained measure of accessibility.
 
 - It constrains the sum of available opportunities to match the total number of opportunities in the region
 - It is easier to interpret than accessibility
@@ -492,10 +1058,10 @@ $$
 
 ```{r load-packages, include=FALSE}
 library(accessibility) # Transport Accessibility Measures # Transport Accessibility Measures
-library(dplyr) # A Grammar of Data Manipulation # A Grammar of Data Manipulation
-library(ggplot2) # Create Elegant Data Visualisations Using the Grammar of Graphics # Create Elegant Data Visualisations Using the Grammar of Graphics
+library(dplyr) # A Grammar of Data Manipulation # A Grammar of Data Manipulation # A Grammar of Data Manipulation
+library(ggplot2) # Create Elegant Data Visualisations Using the Grammar of Graphics # Create Elegant Data Visualisations Using the Grammar of Graphics # Create Elegant Data Visualisations Using the Grammar of Graphics
 library(leaflet) # Create Interactive Web Maps with the JavaScript 'Leaflet' Library # Create Interactive Web Maps with the JavaScript 'Leaflet' Library
-library(patchwork) # The Composer of Plots # The Composer of Plots
+library(patchwork) # The Composer of Plots # The Composer of Plots # The Composer of Plots
 library(sf) # Simple Features for R # Simple Features for R
 library(tidyr) # Tidy Messy Data # Tidy Messy Data
 library(TTS2016R) # An augmented 2016 Transportation Tomorrow Survey (TTS) data package: worker and place of employment counts, trips and estimated travel time to work in the Greater Golden Horsehoe area, Canada # An augmented 2016 Transportation Tomorrow Survey (TTS) data package: worker and place of employment counts, trips and estimated travel time to work in the Greater Golden Horsehoe area, Canada
@@ -671,10 +1237,10 @@ For this practical example we will use data from the 2016 edition of the [Transp
 We will begin by loading the packages used in this example.
 ```
 library(accessibility) # Transport Accessibility Measures # Transport Accessibility Measures
-library(dplyr) # A Grammar of Data Manipulation # A Grammar of Data Manipulation
-library(ggplot2) # Create Elegant Data Visualisations Using the Grammar of Graphics # Create Elegant Data Visualisations Using the Grammar of Graphics
+library(dplyr) # A Grammar of Data Manipulation # A Grammar of Data Manipulation # A Grammar of Data Manipulation
+library(ggplot2) # Create Elegant Data Visualisations Using the Grammar of Graphics # Create Elegant Data Visualisations Using the Grammar of Graphics # Create Elegant Data Visualisations Using the Grammar of Graphics
 library(leaflet) # Create Interactive Web Maps with the JavaScript 'Leaflet' Library # Create Interactive Web Maps with the JavaScript 'Leaflet' Library
-library(patchwork) # The Composer of Plots # The Composer of Plots
+library(patchwork) # The Composer of Plots # The Composer of Plots # The Composer of Plots
 library(sf) # Simple Features for R # Simple Features for R
 library(tidyr) # Tidy Messy Data # Tidy Messy Data
 library(TTS2016R) # An augmented 2016 Transportation Tomorrow Survey (TTS) data package: worker and place of employment counts, trips and estimated travel time to work in the Greater Golden Horsehoe area, Canada # An augmented 2016 Transportation Tomorrow Survey (TTS) data package: worker and place of employment counts, trips and estimated travel time to work in the Greater Golden Horsehoe area, Canada
@@ -1131,6 +1697,7 @@ leaflet(data = results |> st_transform(crs = 4326 )) |>
       direction = "auto"))
 ```
 
+<!--
 Map to explore spatial availability:
 ```{r}
 
@@ -1165,6 +1732,8 @@ leaflet(data = results |> st_transform(crs = 4326 )) |>
       textsize = "15px",
       direction = "auto"))
 ```
+-->
 
 ## References
+
 
