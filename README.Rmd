@@ -1,6 +1,9 @@
 ---
-output: github_document
+output:
+  github_document:
+    pandoc_args: --webtex
 always_allow_html: true
+bibliography: bibliography.bib
 ---
 
 <!-- README.md is generated from README.Rmd. Please edit that file -->
@@ -12,13 +15,18 @@ knitr::opts_chunk$set(
 )
 ```
 
+```{r preliminary-load-packages, include=FALSE}
+library(dplyr)
+library(ggplot2)
+```
+
 # Workshop
 
 ## Introducing spatial availability, a singly-constrained competitive-access accessibility measure
 
 Antonio Paez (School of Earth, Environment and Society, McMaster University, Canada)  
 email: paezha@mcmaster.ca  
-  
+
 Anastasia Soukhov (School of Earth, Environment and Society, McMaster University, Canada)  
 email: soukhoa@mcmaster.ca  
 
@@ -39,45 +47,284 @@ In this workshop, we explain the intuitions behind spatial availability and desc
 
 The use of proportional allocation factors as a mechanism for constraining the spatial availability means that the results are easier to interpret than those obtained from accessibility analysis, and they are more intuitive as well.
 
-One exercise is provided, meant to be solved by hand. The workshop finishes with a practical example of implementation in the `R` language. Data from a real survey in the Greater Toronto and Hamilton Area and the use of package {accessibility} give hands-on practice that can serve as a launching pad for your own experiments and applications.
+One exercise is provided, meant to be solved by hand. The workshop finishes with a practical example of implementation in `R`. Data from a real survey in the Greater Toronto and Hamilton Area and use of package {accessibility} give hands-on practice that can serve as a launching pad for your own experiments and applications.
 
 ## Materials
 
 - Packages
-  - [{accessibility}](https://github.com/paezha/accessibility) (We use the development version in `paezha/accessibility` which can be installed like this:
-```
-remotes::install_github("paezha/accessibility")
-```
-  - [{dplyr}](https://dplyr.tidyverse.org/) (Install from CRAN).
-  - [{ggplot}](https://ggplot2.tidyverse.org/) (Install from CRAN).
-  - [{leaflet}](https://rstudio.github.io/leaflet/) (Install from CRAN).
-  - [{patchwork}](https://patchwork.data-imaginist.com/articles/patchwork.html) (Install from CRAN).
-  - [{sf}](https://r-spatial.github.io/sf/) (Install from CRAN).
+- [{accessibility}](https://github.com/ipeaGIT/accessibility) (Install from CRAN).
+- [{dplyr}](https://dplyr.tidyverse.org/) (Install from CRAN).
+- [{ggplot}](https://ggplot2.tidyverse.org/) (Install from CRAN).
+- [{leaflet}](https://rstudio.github.io/leaflet/) (Install from CRAN).
+- [{patchwork}](https://patchwork.data-imaginist.com/articles/patchwork.html) (Install from CRAN).
+- [{sf}](https://r-spatial.github.io/sf/) (Install from CRAN).
 
 - Data (sourced from the Transportation Tomorrow Survey of the Greater Toronto and Hamilton Area)
-  - [{TTS2016R}](https://soukhova.github.io/TTS2016R/) (Install from GitHub):
+- [{TTS2016R}](https://soukhova.github.io/TTS2016R/) (Install from GitHub):
 ```  
 remotes::install_github("soukhova/TTS2016R")
 ```
 
+## Reproducible environment
+
+A reproducible environment was created using [{renv}](). The repository provides all the infrastructure to replicate the environment used to create the workshop. 
+
+The workshop was developed using `R` 4.3.2 ("Eye Holes").
+
+How to use this repository. Install the appropriate version of `R` (make sure to pick the correct operating system) - this is the programming language, it comes as a ‘core package’ here: https://cran.rstudio.com/
+
+Install RStudio (make sure to pick the correct operating system) - this is the an IDE here: https://www.rstudio.com/products/rstudio/download/.
+
+Download the Rtools43 installer (Windows) and run it to install: https://cran.r-project.org/bin/windows/Rtools/rtools43/rtools.html. If using a Mac this may be achieved through installing Xcode (we don't have Macs so not sure if this works, but it should!): https://mac.r-project.org/tools/
+
+Download the code as a .zip file from this repository: https://github.com/paezha/Workshop-Spatial-Availability. Alternatively, if you work with GitHub, you can fork the repository. The repository contains a `renv.lock` file that specifies all the versions of the packages used in the workshop. 
+
+If you downloaded the repository as a .zip file, unzip the file and store it in an apprioriate directory (i.e., NOT the Downloads folder). Use this folder to work on the workshop.
+
+Double click the file called `Workshop-Spatial-Availability.Rproj`. This is be the `R` project for the workshop. This will launch RStudio.
+
+You will see a message in your console saying that your library is out of synch with the lock file. To 'restore' the state of the project to match the versions specified in the `renv.lock` file run the following:
+
+```
+renv::restore()
+```
+
+Run `renv::status()` in the `R` Console. The output should show a table where the second and third columns are populated with "y" characters. This means the versions of packages on your system matches that specified by the renv.lock file. Congrats!
+
 ## Key concepts
 
-- Accessibility
-- Gravity model
-- Spatial availability
-- Proportional allocation
-- Congestion
-- Transportation Tomorrow Survey
+- Accessibility.  
+- Impedance function.  
+- Gravity model.  
+- Spatial availability.  
+- Proportional allocation.  
+- Congestion.  
+- Transportation Tomorrow Survey.  
 
 ## From accessibility to spatial availability
 
-![](images/Image-01.png)
+### What does a transportation system do?
 
-![](images/Image-02.png)
+The main role of land use systems is to organize activities in space. Transportation provides the means to connect spatially disparate activities. Often, the output of these systems is examined in isolation. For example, the operation of transportation systems is [measured](https://en.wikipedia.org/wiki/Units_of_measurement_in_transportation) in units of length, units of mobility (the potential for movement), or in terms of realized movement (such as VKT, PKT, or t-km).
 
-![](images/Image-03.png)
+A more holistic approach to understand the efficiency of transportation systems is the concept of _accessibility_ [@handy1997Accessibility]. Accessibility is a summary measure of the joint performance of a land use-transportation system, and it quantifies the potential to reach spatially disperse opportunities.
 
-![](images/Image-04.png)
+Consider the following situation, with a single population center and a single center where opportunities (e.g., jobs) are located.
+
+```{r fig-basic-system, echo=FALSE}
+toy_df <- data.frame(uid = c("P1", "O1"),
+                     type = c("P", "O"),
+                     population = c(100, 0),
+                     opportunities = c(0, 200),
+                     x = c(0, 35),
+                     y = c(0, 0),
+                     label = c("P = 100", "O = 200"))
+
+ggplot(data = toy_df,
+       aes(x = x,
+           y = y,
+           shape = type)) +
+  geom_point(size = 10) +
+  geom_text(aes(x = x,
+                y = y - 0.1, 
+                label = label)) +
+  ylim(c(-0.15, 0.15)) +
+  theme_void() +
+  theme(legend.position = "none")
+```
+
+How accessible are the opportunities? It depends on the travel behavior under a given transportation system.
+
+People may be unwilling to travel too far for some opportunities, even if those opportunities seem essential (i.e., no one travels on a daily basis from Toronto for a job in Vancouver.) And for some people, the cost of reaching opportunities may exceed their willingness to pay.
+
+The travel behavior of a population is modelled using an _impedance function_ (also sometimes called a _distance-decay function_, or a _deterrence function_.)
+
+```{r fig-basic-system-w-impedance, echo=FALSE}
+imp_df <- data.frame(time = seq(from = -50,
+                                to = 50, 
+                                by = 1)) |>
+  mutate(f = exp(-0.1 * abs(time)))
+
+ggplot() +
+  # Plot origin(s) and destination(s)
+  geom_point(data = toy_df,
+             aes(x = x,
+                 y = y,
+                 shape = type),
+             size = 10) +
+  # Label the origin(s) and destination(s)
+  geom_text(data = toy_df,
+            aes(x = x,
+                y = y - 0.1,
+                label = label)) +
+  # Plot the impedance function
+  geom_line(data = imp_df |>
+              filter(time >= 1),
+            aes(x = time,
+                y = f),
+            color = "red") +
+  # Label the impedance function
+  geom_text(aes(x = 20, 
+            y = 0.5,
+            label = "impedance function"),
+            color = "red",
+            size = 5) +
+  annotate("segment",
+           x = 19,
+           xend = 15,
+           y = 0.45,
+           yend = 0.25,
+           color = "red",
+           arrow = arrow()) +
+  ylim(c(-0.15, 1)) +
+  xlab("time (min)") +
+  theme_minimal() +
+  theme(legend.position = "none")
+```
+
+An impedance function captures the effect of the friction of movement: it is a well-known regularity that most people prefer to spend less time/effort/money travelling than more. The impedance function models the propensity to travel by the cost/length/duration of trips. At some point, that propensity becomes zero, when the cost of reaching the opportunity outweighs the benefits that the opportunity brings.
+
+### Impedance functions
+
+A number of different impedance functions have been used in the literature. The simplest is a binary function as follows:
+$$
+f(c_{ij}) = \begin{cases}
+1 & \text{if }c_{ij}\le\delta\\
+0 & \text{otherwise}
+\end{cases}
+$$
+
+In the above, $c_ij$ is the cost of reaching destination $j$ from origin $i$, and $\delta$ is a _threshold_, that is, the tolerance for long trips. What kind of behavior does this function represent?  
+
+```{r fig-binary-impedance, echo=FALSE}
+imp_df <- data.frame(time = seq(from = -50,
+                                to = 50, 
+                                by = 0.1)) |>
+  mutate(f = ifelse(time <= 20, 1, 0))
+
+ggplot() +
+  # Plot the impedance function
+  geom_line(data = imp_df |>
+              filter(time >= 1),
+            aes(x = time,
+                y = f),
+            color = "red") +
+  # Label the impedance function
+  geom_text(aes(x = 35, 
+            y = 0.5,
+            label = "binary impedance function"),
+            color = "red",
+            size = 5) +
+  annotate("segment",
+           x = 34,
+           xend = 21,
+           y = 0.45,
+           yend = 0.25,
+           color = "red",
+           arrow = arrow()) +
+  ylim(c(-0.15, 1)) +
+    xlab("time (min)") +
+  theme_minimal() +
+  theme(legend.position = "none")
+```
+
+This function has been used in numerous studies, including:
+
+- @kawabata2006Accessibility
+  - $\delta = 30$ min (Boston and LA)
+  - $\delta = 45$ min (Tokyo)
+- @korsu2010Accessibility
+  - $\delta = 60$ min (Paris)
+- @lin2016Accessibility
+  - $\delta = 30$ min (Taipei)
+- @boisjoly2017Accessibility
+  - $\delta = 60$ min (Sao Paulo)
+  
+An alternative is the inverse power function:
+$$
+f(c_{ij}) = c_{ij}^{-\beta}
+$$
+This function was used, for example, by @matas2010Accessibility for Barcelona and Madrid, with $c_{ij$ the travel time in minutes and $\beta = -1$:
+$$
+f(c_{ij}) = \frac{1}{c_{ij}}
+$$
+
+```{r fig-inverse-power-impedance, echo=FALSE}
+imp_df <- data.frame(time = seq(from = -50,
+                                to = 50, 
+                                by = 0.1)) |>
+  filter(abs(time) >= 1) |>
+  mutate(f = 1/time)
+
+ggplot() +
+  # Plot the impedance function
+  geom_line(data = imp_df |>
+              filter(time >= 1),
+            aes(x = time,
+                y = f),
+            color = "red") +
+  # Label the impedance function
+  geom_text(aes(x = 35, 
+            y = 0.5,
+            label = "inverse power impedance function"),
+            color = "red",
+            size = 5) +
+  annotate("segment",
+           x = 34,
+           xend = 21,
+           y = 0.45,
+           yend = 0.25,
+           color = "red",
+           arrow = arrow()) +
+  ylim(c(-0.15, 1)) +
+    xlab("time (min)") +
+  theme_minimal() +
+  theme(legend.position = "none")
+```
+
+The negative exponential function is as follows:
+$$
+f(c_{ij}) = \exp(-\beta c_{ij}^\gamma) = e^{-\beta c_{ij}^\gamma}
+$$
+
+@cheng2013Accessibility used this measure for the case of Amsterdam, with $\beta = 0.15$ and $\gamma = 1$:
+```{r fig-negative-exponential-impedance, echo=FALSE}
+imp_df <- data.frame(time = seq(from = -50,
+                                to = 50, 
+                                by = 0.1)) |>
+  mutate(f = exp(-0.15 * time))
+
+ggplot() +
+  # Plot the impedance function
+  geom_line(data = imp_df |>
+              filter(time >= 1),
+            aes(x = time,
+                y = f),
+            color = "red") +
+  # Label the impedance function
+  geom_text(aes(x = 35, 
+            y = 0.5,
+            label = "negative exponential impedance function"),
+            color = "red",
+            size = 5) +
+  annotate("segment",
+           x = 34,
+           xend = 21,
+           y = 0.45,
+           yend = 0.25,
+           color = "red",
+           arrow = arrow()) +
+  ylim(c(-0.15, 1)) +
+    xlab("time (min)") +
+  theme_minimal() +
+  theme(legend.position = "none")
+```
+### What is accessibility?
+
+Accessibility is defined as a weighted sum of opportunities:
+$$
+S_i =\sum_j \underbrace{O_j}_{\text{Opportunities }} \underbrace{f(c_{ij})}_{\text{ Weights (impedance)}}
+$$
 
 ![](images/Image-05.png)
 
@@ -798,24 +1045,24 @@ The plot shows that zones with larger populations tend to be consistently are no
 <!--
 ```{r applied-example-plot-accessibility-per-capita}
 si_plot <- ggplot() +
-  geom_sf(data = results,
-          aes(fill = si)) +
-  geom_sf(data = lu,
-          fill = NA) +
-  scale_fill_viridis_c(direction = 1) +
-  theme_void() +
-  ggtitle("Accessibility per capita")
+geom_sf(data = results,
+aes(fill = si)) +
+geom_sf(data = lu,
+fill = NA) +
+scale_fill_viridis_c(direction = 1) +
+theme_void() +
+ggtitle("Accessibility per capita")
 ```
 
 ```{r applied-example-plot-availability-per-capita}
 vi_plot <- ggplot() +
-  geom_sf(data = results,
-          aes(fill = vi)) +
-  geom_sf(data = lu,
-          fill = NA) +
-  scale_fill_viridis_c(direction = 1) +
-  theme_void() +
-  ggtitle("Spatial Availability per capita")
+geom_sf(data = results,
+aes(fill = vi)) +
+geom_sf(data = lu,
+fill = NA) +
+scale_fill_viridis_c(direction = 1) +
+theme_void() +
+ggtitle("Spatial Availability per capita")
 ```
 
 Render:
@@ -826,12 +1073,12 @@ si_plot + vi_plot
 The same is true of $s_i$: the ratio of $s_i$ to $v_i$ indicates it is not simply a scaled-up version of $v_i$ but rather something different:
 ```{r applied-example-ratio-accessibility-to-availability-per-capita}
 ggplot() +
-  geom_sf(data = results,
-          aes(fill = si/vi)) +
-  geom_sf(data = lu,
-          fill = NA) +
-  scale_fill_viridis_c(direction = 1, trans = "log10") +
-  theme_void()
+geom_sf(data = results,
+aes(fill = si/vi)) +
+geom_sf(data = lu,
+fill = NA) +
+scale_fill_viridis_c(direction = 1, trans = "log10") +
+theme_void()
 ```
 -->
 
@@ -919,4 +1166,5 @@ leaflet(data = results |> st_transform(crs = 4326 )) |>
       direction = "auto"))
 ```
 
+## References
 
