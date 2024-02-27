@@ -32,6 +32,7 @@ Anastasia Soukhov (School of Earth, Environment and Society, McMaster University
 email: soukhoa@mcmaster.ca  
 
 <!-- badges: start -->
+[![DOI](https://zenodo.org/badge/758654646.svg)](https://zenodo.org/doi/10.5281/zenodo.10718412)
 <!-- badges: end -->
 
 <!--
